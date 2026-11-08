@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Product;
 use App\Models\Shop;
+use App\Models\ShopProduct;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -38,4 +40,22 @@ function ownerForShops(array $shops, array $attributes = []): User
     $owner->shops()->attach(collect($shops)->pluck('id')->all());
 
     return $owner;
+}
+
+/**
+ * Create a product and assign it to the given shop.
+ *
+ * @param  array<string, mixed>  $productAttributes
+ * @param  array<string, mixed>  $listingAttributes
+ */
+function createListing(Shop $shop, array $productAttributes = [], array $listingAttributes = []): ShopProduct
+{
+    $product = Product::factory()->create($productAttributes);
+
+    $listing = ShopProduct::factory()->create(array_merge([
+        'shop_id' => $shop->id,
+        'product_id' => $product->id,
+    ], $listingAttributes));
+
+    return $listing->setRelation('product', $product);
 }

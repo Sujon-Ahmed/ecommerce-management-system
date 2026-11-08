@@ -4,7 +4,7 @@ A multi-shop e-commerce management platform built for the CSN Bangladesh technic
 
 Administrators manage shops, shop owners, and the global product catalog. Shop owners browse the shared catalog, add products to their shops, create new catalog products, and customize their own prices, descriptions, and thumbnails. Customers browse a shop-specific storefront that never exposes products not assigned to that shop.
 
-> **Status:** Phase 3 (backend foundation, admin module, and shop-owner module) is implemented. The public storefront, React frontend, and full documentation follow in later phases.
+> **Status:** Phase 4 (backend foundation, admin module, shop-owner module, and public storefront) is implemented. The React frontend and full documentation follow in later phases.
 
 ## Repository layout
 
@@ -113,3 +113,12 @@ X-Shop-Id: <shop id>
 ```
 
 or `?shop_id=<shop id>`. Without a context the API returns `422 SHOP_CONTEXT_REQUIRED`; an unassigned shop returns `403 SHOP_NOT_ASSIGNED`, and an inactive shop returns `403 SHOP_INACTIVE`.
+
+**Public storefront** (no authentication)
+
+- `GET /api/v1/storefront/shops` — active shops with visible product counts
+- `GET /api/v1/storefront/shops/{shop-slug}` — public shop profile
+- `GET /api/v1/storefront/shops/{shop-slug}/products` — products assigned to that shop
+- `GET /api/v1/storefront/shops/{shop-slug}/products/{product-slug}` — shop-specific product detail
+
+The storefront only returns products that are active in the global catalog **and** actively assigned to the requested shop. Inactive or soft-deleted shops return `404`, and shop-specific price, description, and thumbnail overrides fall back to the global values. Supported list filters: `search`, `category`, `min_price`, `max_price`, `in_stock`; sorting: `latest`, `price_asc`, `price_desc`, `name`.

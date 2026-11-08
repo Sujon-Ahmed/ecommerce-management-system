@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\V1\ShopOwner\CatalogController as ShopOwnerCatalogC
 use App\Http\Controllers\Api\V1\ShopOwner\DashboardController as ShopOwnerDashboardController;
 use App\Http\Controllers\Api\V1\ShopOwner\ShopController as ShopOwnerShopController;
 use App\Http\Controllers\Api\V1\ShopOwner\ShopProductController as ShopOwnerProductController;
+use App\Http\Controllers\Api\V1\Storefront\ProductController as StorefrontProductController;
+use App\Http\Controllers\Api\V1\Storefront\ShopController as StorefrontShopController;
 use App\Http\Middleware\ResolveShopContext;
 use Illuminate\Support\Facades\Route;
 
@@ -89,4 +91,11 @@ Route::prefix('v1')->group(function () {
             Route::delete('products/{product}', [ShopOwnerProductController::class, 'destroy'])
                 ->middleware('permission:shop-products.delete');
         });
+
+    Route::prefix('storefront')->group(function () {
+        Route::get('shops', [StorefrontShopController::class, 'index']);
+        Route::get('shops/{shop:slug}', [StorefrontShopController::class, 'show']);
+        Route::get('shops/{shop:slug}/products', [StorefrontProductController::class, 'index']);
+        Route::get('shops/{shop:slug}/products/{product:slug}', [StorefrontProductController::class, 'show']);
+    });
 });

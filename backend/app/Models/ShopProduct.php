@@ -74,6 +74,13 @@ class ShopProduct extends Model
         });
     }
 
+    protected function effectiveDescription(): Attribute
+    {
+        return Attribute::get(
+            fn (): ?string => $this->description ?? $this->product?->description
+        );
+    }
+
     protected function inStock(): Attribute
     {
         return Attribute::get(fn (): bool => $this->stock > 0);
