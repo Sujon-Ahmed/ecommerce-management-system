@@ -4,7 +4,7 @@ A multi-shop e-commerce management platform built for the CSN Bangladesh technic
 
 Administrators manage shops, shop owners, and the global product catalog. Shop owners browse the shared catalog, add products to their shops, create new catalog products, and customize their own prices, descriptions, and thumbnails. Customers browse a shop-specific storefront that never exposes products not assigned to that shop.
 
-> **Status:** Phase 2 (backend foundation and admin module) is implemented. Shop-owner and customer APIs, the React frontend, and the full documentation follow in later phases.
+> **Status:** Phase 3 (backend foundation, admin module, and shop-owner module) is implemented. The public storefront, React frontend, and full documentation follow in later phases.
 
 ## Repository layout
 
@@ -75,14 +75,41 @@ php artisan test
 
 ## API documentation
 
-The full endpoint reference, payloads, and the Postman collection are added in Phase 7. Implemented in Phase 2:
+The full endpoint reference, payloads, and the Postman collection are added in Phase 7. Implemented so far:
+
+**Authentication**
 
 - `POST /api/v1/auth/login`
 - `GET /api/v1/auth/me`
 - `POST /api/v1/auth/logout`
 - `PUT /api/v1/auth/profile`
 - `PUT /api/v1/auth/password`
+
+**Admin** (`role:admin`)
+
 - `/api/v1/admin/dashboard`
 - `/api/v1/admin/shops`
 - `/api/v1/admin/shop-owners`
 - `/api/v1/admin/products`
+
+**Shop owner** (`role:shop_owner`)
+
+- `GET /api/v1/shop-owner/dashboard`
+- `GET /api/v1/shop-owner/shop` (read-only settings)
+- `GET /api/v1/shop-owner/catalog`
+- `GET /api/v1/shop-owner/catalog/{product}`
+- `POST /api/v1/shop-owner/catalog/{product}/assign`
+- `GET /api/v1/shop-owner/products`
+- `POST /api/v1/shop-owner/products` (creates a catalog product and assigns it)
+- `PUT /api/v1/shop-owner/products/{product}` (shop-specific overrides only)
+- `DELETE /api/v1/shop-owner/products/{product}` (unassign)
+
+### Shop context
+
+Shop-owner requests resolve the active shop automatically when the owner has exactly one assignment. Owners with multiple shops must send either:
+
+```
+X-Shop-Id: <shop id>
+```
+
+or `?shop_id=<shop id>`. Without a context the API returns `422 SHOP_CONTEXT_REQUIRED`; an unassigned shop returns `403 SHOP_NOT_ASSIGNED`, and an inactive shop returns `403 SHOP_INACTIVE`.

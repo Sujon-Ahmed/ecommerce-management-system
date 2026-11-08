@@ -5,6 +5,11 @@ use App\Http\Controllers\Api\V1\Admin\ProductController as AdminProductControlle
 use App\Http\Controllers\Api\V1\Admin\ShopController as AdminShopController;
 use App\Http\Controllers\Api\V1\Admin\ShopOwnerController as AdminShopOwnerController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
+use App\Http\Controllers\Api\V1\ShopOwner\CatalogController as ShopOwnerCatalogController;
+use App\Http\Controllers\Api\V1\ShopOwner\DashboardController as ShopOwnerDashboardController;
+use App\Http\Controllers\Api\V1\ShopOwner\ShopController as ShopOwnerShopController;
+use App\Http\Controllers\Api\V1\ShopOwner\ShopProductController as ShopOwnerProductController;
+use App\Http\Middleware\ResolveShopContext;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -57,5 +62,31 @@ Route::prefix('v1')->group(function () {
                 ->middleware('permission:products.update');
             Route::delete('products/{product}', [AdminProductController::class, 'destroy'])
                 ->middleware('permission:products.delete');
+        });
+
+    Route::prefix('shop-owner')
+        ->middleware(['auth:sanctum', 'active', 'role:shop_owner', ResolveShopContext::class])
+        ->group(function () {
+            Route::get('dashboard', [ShopOwnerDashboardController::class, 'index'])
+                ->middleware('permission:dashboard.view');
+
+            Route::get('shop', [ShopOwnerShopController::class, 'show'])
+                ->middleware('permission:shops.view');
+
+            Route::get('catalog', [ShopOwnerCatalogController::class, 'index'])
+                ->middleware('permission:catalog.view');
+            Route::get('catalog/{product}', [ShopOwnerCatalogController::class, 'show'])
+                ->middleware('permission:catalog.view');
+            Route::post('catalog/{product}/assign', [ShopOwnerCatalogController::class, 'assign'])
+                ->middleware('permission:shop-products.assign');
+
+            Route::get('products', [ShopOwnerProductController::class, 'index'])
+                ->middleware('permission:shop-products.view');
+            Route::post('products', [ShopOwnerProductController::class, 'store'])
+                ->middleware('permission:products.create');
+            Route::match(['put', 'patch'], 'products/{product}', [ShopOwnerProductController::class, 'update'])
+                ->middleware('permission:shop-products.update');
+            Route::delete('products/{product}', [ShopOwnerProductController::class, 'destroy'])
+                ->middleware('permission:shop-products.delete');
         });
 });

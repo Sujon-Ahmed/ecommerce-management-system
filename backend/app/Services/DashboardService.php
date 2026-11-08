@@ -25,4 +25,25 @@ class DashboardService
             'assignments' => ShopProduct::count(),
         ];
     }
+
+    public function shopOwnerStats(Shop $shop): array
+    {
+        $listings = ShopProduct::query()->where('shop_id', $shop->id);
+
+        return [
+            'listings' => [
+                'total' => (clone $listings)->count(),
+                'active' => (clone $listings)->where('status', 'active')->count(),
+                'inactive' => (clone $listings)->where('status', 'inactive')->count(),
+                'in_stock' => (clone $listings)->where('stock', '>', 0)->count(),
+                'out_of_stock' => (clone $listings)->where('stock', '<=', 0)->count(),
+            ],
+            'catalog' => [
+                'available' => Product::query()
+                    ->active()
+                    ->whereDoesntHave('shopProducts', fn ($query) => $query->where('shop_id', $shop->id))
+                    ->count(),
+            ],
+        ];
+    }
 }
