@@ -1,0 +1,2679 @@
+{
+  "info": {
+    "_postman_id": "5b0f8f0e-8a2c-4d5e-9b1f-3c7d9e2a4b61",
+    "name": "ShopSphere API",
+    "description": "End-to-end Postman collection for the ShopSphere REST API.\n\nImport `ShopSphere.postman_environment.json`, select the **ShopSphere Local** environment, then run the folders in this order: **Auth → Storefront → Admin → Shop owner**.\n\nThe Auth scripts capture `adminToken`, `ownerToken`, `ownerShopId`, and `ownerShopSlug`. The Admin and Shop owner scripts create and remove QA resources while capturing their ids. The optional **Cleanup** folder revokes the captured tokens.\n\nRequests that can upload images use `multipart/form-data` with the file field disabled. Enable the field and choose a file (jpg, jpeg, png, or webp; max 2 MB) to exercise an upload.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('baseUrl')) {",
+          "  pm.environment.set('baseUrl', 'http://localhost:8000/api/v1');",
+          "}",
+          "",
+          "if (!pm.request.headers.get('Accept')) {",
+          "  pm.request.headers.add({ key: 'Accept', value: 'application/json' });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response is JSON', function () {",
+          "  pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Sign in as the seeded administrator and shop owner. Run this folder first so the protected folders receive valid tokens.",
+      "item": [
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Admin token and role are returned', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(data.user.roles).to.include('admin');",
+                  "  pm.environment.set('adminToken', data.token);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Password@123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Signs in with the seeded administrator. The test script stores the bearer token in `adminToken`."
+          }
+        },
+        {
+          "name": "Login Shop Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Owner token, role, and first shop are returned', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.token).to.be.a('string').and.not.empty;",
+                  "  pm.expect(data.user.roles).to.include('shop_owner');",
+                  "  pm.expect(data.user.shops).to.be.an('array').and.not.empty;",
+                  "  pm.environment.set('ownerToken', data.token);",
+                  "  pm.environment.set('ownerShopId', String(data.user.shops[0].id));",
+                  "  pm.environment.set('ownerShopSlug', data.user.shops[0].slug);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"owner.dhaka@example.com\",\n  \"password\": \"Password@123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Signs in as the seeded shop owner with two shops. The test script stores `ownerToken`, `ownerShopId`, and `ownerShopSlug` (the first assigned shop)."
+          }
+        },
+        {
+          "name": "Current User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Current user is the seeded administrator', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.email).to.eql('admin@example.com');",
+                  "  pm.expect(data.roles).to.include('admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Reads the authenticated administrator profile, including roles and assigned shops."
+          }
+        },
+        {
+          "name": "Update Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Profile update is reflected in the response', function () {",
+                  "  pm.expect(pm.response.json().data.name).to.eql('System Administrator');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "profile"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"System Administrator\",\n  \"phone\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Updates the administrator profile. The values match the seeded account."
+          }
+        },
+        {
+          "name": "Update Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "password"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"Password@123!\",\n  \"password\": \"Password@123!\",\n  \"password_confirmation\": \"Password@123!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Re-applies the demo password. The current token stays valid, but every other token for this user is revoked. Change both password fields if you are not using the seeded administrator."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Storefront",
+      "description": "Public endpoints. The list request stores a shop slug; the product list stores a product slug for the detail request.",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "List Shops",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "  pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('A shop slug is available for later requests', function () {",
+                  "  const shops = pm.response.json().data;",
+                  "  pm.expect(shops.length).to.be.above(0);",
+                  "  if (!pm.environment.get('shopSlug')) {",
+                  "    pm.environment.set('shopSlug', pm.environment.get('ownerShopSlug') || shops[0].slug);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/storefront/shops",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "storefront",
+                "shops"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Public list of active shops with visible product counts. Stores `shopSlug` unless it is already set; the owner shop is preferred when Auth has run."
+          }
+        },
+        {
+          "name": "Get Shop",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Shop matches the selected slug', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.slug).to.eql(pm.environment.get('shopSlug'));",
+                  "  pm.expect(data.products_count).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/storefront/shops/{{shopSlug}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "storefront",
+                "shops",
+                "{{shopSlug}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Public shop profile and visible product count."
+          }
+        },
+        {
+          "name": "List Shop Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "  pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination metadata is present', function () {",
+                  "  pm.expect(pm.response.json().meta).to.be.an('object');",
+                  "});",
+                  "",
+                  "pm.test('A product slug is available for the detail request', function () {",
+                  "  const products = pm.response.json().data;",
+                  "  pm.expect(products.length).to.be.above(0);",
+                  "  pm.environment.set('productSlug', products[0].slug);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/storefront/shops/{{shopSlug}}/products?sort=latest&per_page=12",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "storefront",
+                "shops",
+                "{{shopSlug}}",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Matches product name, SKU, or category."
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Exact category match."
+                },
+                {
+                  "key": "min_price",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Inclusive shop-price minimum."
+                },
+                {
+                  "key": "max_price",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Inclusive shop-price maximum."
+                },
+                {
+                  "key": "in_stock",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "1 = stock > 0, 0 = stock <= 0."
+                },
+                {
+                  "key": "sort",
+                  "value": "latest",
+                  "description": "latest, price_asc, price_desc, or name."
+                },
+                {
+                  "key": "per_page",
+                  "value": "12",
+                  "description": "Maximum 48."
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Paginated products visible in the selected shop. Optional filters are included as disabled query parameters. The first product slug is stored for the detail request."
+          }
+        },
+        {
+          "name": "List Shop Products (Search + Sort)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "  pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination metadata is present', function () {",
+                  "  pm.expect(pm.response.json().meta).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/storefront/shops/{{shopSlug}}/products?search=earbuds&sort=price_asc&per_page=12",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "storefront",
+                "shops",
+                "{{shopSlug}}",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "earbuds",
+                  "description": "Sample search term."
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Exact category match."
+                },
+                {
+                  "key": "min_price",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Inclusive shop-price minimum."
+                },
+                {
+                  "key": "max_price",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Inclusive shop-price maximum."
+                },
+                {
+                  "key": "in_stock",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "1 = stock > 0, 0 = stock <= 0."
+                },
+                {
+                  "key": "sort",
+                  "value": "price_asc",
+                  "description": "latest, price_asc, price_desc, or name."
+                },
+                {
+                  "key": "per_page",
+                  "value": "12",
+                  "description": "Maximum 48."
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Demonstrates the storefront filters with a sample search and ascending price sort. Edit the query parameters to try other filters."
+          }
+        },
+        {
+          "name": "Get Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Product matches the selected slug and exposes a price', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.slug).to.eql(pm.environment.get('productSlug'));",
+                  "  pm.expect(data.price).to.be.a('string');",
+                  "  pm.expect(data.shop_product_id).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/storefront/shops/{{shopSlug}}/products/{{productSlug}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "storefront",
+                "shops",
+                "{{shopSlug}}",
+                "products",
+                "{{productSlug}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Public product detail with shop-specific price, description, and thumbnail applied."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "description": "Requires `adminToken` from Auth → Login Admin. Creates, reads, updates, and deletes QA products, shops, and shop owners.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{adminToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "Dashboard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Dashboard statistics are returned', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.stats).to.be.an('object');",
+                  "  pm.expect(data.stats.shops).to.be.an('object');",
+                  "  pm.expect(data.recent_shops).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Aggregate shop, product, owner, and assignment statistics with recent resources."
+          }
+        },
+        {
+          "name": "List Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "  pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination metadata is present', function () {",
+                  "  pm.expect(pm.response.json().meta).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products?per_page=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Matches name, SKU, or category."
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Exact category match."
+                },
+                {
+                  "key": "is_active",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "Filter by active state."
+                },
+                {
+                  "key": "created_by",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Administrator user ID."
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Maximum 100."
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Paginated global catalog. Optional filters are included as disabled query parameters."
+          }
+        },
+        {
+          "name": "Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Created product id is captured', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.id).to.not.eql(undefined);",
+                  "  pm.environment.set('createdProductId', String(data.id));",
+                  "});",
+                  "",
+                  "pm.test('Create response contains the QA product', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.name).to.eql('QA Wireless Charger');",
+                  "  pm.expect(data.sku).to.match(/^QA-/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "QA Wireless Charger",
+                  "type": "text",
+                  "description": "Named with a timestamp to keep the slug unique per run."
+                },
+                {
+                  "key": "sku",
+                  "value": "QA-{{$timestamp}}-{{$randomInt}}",
+                  "type": "text",
+                  "description": "SKU is uppercased by the API."
+                },
+                {
+                  "key": "description",
+                  "value": "A QA-only product created by the Postman collection.",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "QA",
+                  "type": "text"
+                },
+                {
+                  "key": "is_active",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "thumbnail",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional catalog image (jpg, jpeg, png, webp; max 2 MB)."
+                }
+              ]
+            },
+            "description": "Creates a QA catalog product. The `thumbnail` file field is disabled until you select an image; the request still uses multipart form data."
+          }
+        },
+        {
+          "name": "Get Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Returned product matches the captured id', function () {",
+                  "  pm.expect(String(pm.response.json().data.id)).to.eql(pm.environment.get('createdProductId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/{{createdProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products",
+                "{{createdProductId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Reads the product created above, including its shop listings."
+          }
+        },
+        {
+          "name": "Update Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Updated values are reflected in the response', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.name).to.eql('QA Wireless Charger Updated');",
+                  "  pm.expect(data.category).to.eql('QA');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/{{createdProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products",
+                "{{createdProductId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "_method",
+                  "value": "PUT",
+                  "type": "text"
+                },
+                {
+                  "key": "name",
+                  "value": "QA Wireless Charger Updated",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Updated by the ShopSphere Postman collection.",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "QA",
+                  "type": "text"
+                },
+                {
+                  "key": "is_active",
+                  "value": "1",
+                  "type": "text"
+                },
+                {
+                  "key": "remove_thumbnail",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "thumbnail",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional replacement image (jpg, jpeg, png, webp; max 2 MB)."
+                }
+              ]
+            },
+            "description": "Updates the QA product using `_method=PUT` so the multipart body is parsed by Laravel. Enable the `thumbnail` file field to test an upload."
+          }
+        },
+        {
+          "name": "Delete Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Created product id variable is cleared', function () {",
+                  "  pm.environment.unset('createdProductId');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/products/{{createdProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "products",
+                "{{createdProductId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Soft-deletes the QA product and removes its shop assignments."
+          }
+        },
+        {
+          "name": "List Shops",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "  pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination metadata is present', function () {",
+                  "  pm.expect(pm.response.json().meta).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shops?per_page=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shops"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Matches name or slug."
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "disabled": true,
+                  "description": "active or inactive."
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Maximum 100."
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Paginated shops with owner and listing counts. Optional filters are included as disabled query parameters."
+          }
+        },
+        {
+          "name": "Create Shop",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Created shop id is captured', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.id).to.not.eql(undefined);",
+                  "  pm.environment.set('createdShopId', String(data.id));",
+                  "});",
+                  "",
+                  "pm.test('Create response contains the QA shop', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.status).to.eql('active');",
+                  "  pm.expect(data.slug).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shops",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shops"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "QA Postman Shop {{$timestamp}}",
+                  "type": "text",
+                  "description": "The API generates a unique slug from this name."
+                },
+                {
+                  "key": "description",
+                  "value": "A QA-only shop created by the Postman collection.",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "type": "text"
+                },
+                {
+                  "key": "logo",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional shop logo (jpg, jpeg, png, webp; max 2 MB)."
+                }
+              ]
+            },
+            "description": "Creates a QA shop. The `logo` file field is disabled until you select an image; the request still uses multipart form data."
+          }
+        },
+        {
+          "name": "Get Shop",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Returned shop matches the captured id', function () {",
+                  "  pm.expect(String(pm.response.json().data.id)).to.eql(pm.environment.get('createdShopId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shops/{{createdShopId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shops",
+                "{{createdShopId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Reads the created shop with its assigned owners."
+          }
+        },
+        {
+          "name": "Update Shop",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Updated values are reflected in the response', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.name).to.eql('QA Postman Shop Updated');",
+                  "  pm.expect(data.status).to.eql('inactive');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shops/{{createdShopId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shops",
+                "{{createdShopId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "_method",
+                  "value": "PUT",
+                  "type": "text"
+                },
+                {
+                  "key": "name",
+                  "value": "QA Postman Shop Updated",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Updated by the ShopSphere Postman collection.",
+                  "type": "text"
+                },
+                {
+                  "key": "status",
+                  "value": "inactive",
+                  "type": "text"
+                },
+                {
+                  "key": "remove_logo",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "logo",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional replacement logo (jpg, jpeg, png, webp; max 2 MB)."
+                }
+              ]
+            },
+            "description": "Updates the QA shop using `_method=PUT` so the multipart body is parsed by Laravel. Enable the `logo` file field to test an upload."
+          }
+        },
+        {
+          "name": "List Shop Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "  pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination metadata is present', function () {",
+                  "  pm.expect(pm.response.json().meta).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shops/{{createdShopId}}/products?per_page=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shops",
+                "{{createdShopId}}",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Matches product name or SKU."
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "disabled": true,
+                  "description": "active or inactive."
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Maximum 100."
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Paginated listings for the created shop. The new shop has no listings, so the array is empty."
+          }
+        },
+        {
+          "name": "Delete Shop",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Created shop id variable is cleared', function () {",
+                  "  pm.environment.unset('createdShopId');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shops/{{createdShopId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shops",
+                "{{createdShopId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Soft-deletes the QA shop and its listings."
+          }
+        },
+        {
+          "name": "List Shop Owners",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "  pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination metadata is present', function () {",
+                  "  pm.expect(pm.response.json().meta).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shop-owners?per_page=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shop-owners"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Matches name or email."
+                },
+                {
+                  "key": "is_active",
+                  "value": "1",
+                  "disabled": true,
+                  "description": "Filter by active state."
+                },
+                {
+                  "key": "shop_id",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Only owners assigned to this shop."
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Maximum 100."
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Paginated shop-owner accounts with their assigned shops."
+          }
+        },
+        {
+          "name": "Create Shop Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Created owner id is captured', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.id).to.not.eql(undefined);",
+                  "  pm.environment.set('createdOwnerId', String(data.id));",
+                  "});",
+                  "",
+                  "pm.test('Create response contains a shop-owner account', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.roles).to.include('shop_owner');",
+                  "  pm.expect(data.email).to.match(/^qa-owner-.*@example\\.com$/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shop-owners",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shop-owners"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA Postman Owner\",\n  \"email\": \"qa-owner-{{$randomUUID}}@example.com\",\n  \"password\": \"Password@123!\",\n  \"password_confirmation\": \"Password@123!\",\n  \"phone\": \"+8801700000099\",\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Creates a QA shop-owner account. The email uses a random UUID so repeated runs do not collide. Add `shop_ids` if you want to assign shops."
+          }
+        },
+        {
+          "name": "Get Shop Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Returned owner matches the captured id', function () {",
+                  "  pm.expect(String(pm.response.json().data.id)).to.eql(pm.environment.get('createdOwnerId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shop-owners/{{createdOwnerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shop-owners",
+                "{{createdOwnerId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Reads the created shop-owner account with its assigned shops."
+          }
+        },
+        {
+          "name": "Update Shop Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Updated owner values are reflected in the response', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.name).to.eql('QA Postman Owner Updated');",
+                  "  pm.expect(data.phone).to.eql('+8801700000098');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shop-owners/{{createdOwnerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shop-owners",
+                "{{createdOwnerId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"QA Postman Owner Updated\",\n  \"phone\": \"+8801700000098\",\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Updates the QA owner. Password is optional on update; supplying it also requires `password_confirmation` and revokes the owner tokens."
+          }
+        },
+        {
+          "name": "Delete Shop Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Created owner id variable is cleared', function () {",
+                  "  pm.environment.unset('createdOwnerId');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/shop-owners/{{createdOwnerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "shop-owners",
+                "{{createdOwnerId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Soft-deletes the QA owner, detaches shops, and revokes their tokens."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shop owner",
+      "description": "Requires `ownerToken` and `ownerShopId` from Auth → Login Shop Owner. Every request receives `X-Shop-Id` automatically.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{ownerToken}}",
+            "type": "string"
+          }
+        ]
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const shopId = pm.environment.get('ownerShopId');",
+              "",
+              "if (shopId) {",
+              "  if (pm.request.headers.get('X-Shop-Id')) {",
+              "    pm.request.headers.upsert({ key: 'X-Shop-Id', value: shopId });",
+              "  } else {",
+              "    pm.request.headers.add({ key: 'X-Shop-Id', value: shopId });",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "item": [
+        {
+          "name": "Dashboard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Dashboard returns the selected shop and listing stats', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.shop.id).to.be.a('number');",
+                  "  pm.expect(data.stats.listings).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "dashboard"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Selected shop and listing statistics. The folder sends `X-Shop-Id` from `ownerShopId`."
+          }
+        },
+        {
+          "name": "Get Shop Settings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Shop context matches the captured shop id', function () {",
+                  "  pm.expect(String(pm.response.json().data.id)).to.eql(pm.environment.get('ownerShopId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/shop",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "shop"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Read-only shop profile for the selected shop."
+          }
+        },
+        {
+          "name": "List Catalog (Unassigned)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "  pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination metadata is present', function () {",
+                  "  pm.expect(pm.response.json().meta).to.be.an('object');",
+                  "});",
+                  "",
+                  "pm.test('An unassigned catalog product is available', function () {",
+                  "  const products = pm.response.json().data;",
+                  "  pm.expect(products.length).to.be.above(0);",
+                  "  pm.expect(products[0].assigned).to.eql(false);",
+                  "  pm.environment.set('catalogProductId', String(products[0].id));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/catalog?assigned=0&per_page=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "catalog"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Matches name, SKU, or category."
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Exact category match."
+                },
+                {
+                  "key": "assigned",
+                  "value": "0",
+                  "description": "0 = unassigned products only, 1 = assigned only."
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Maximum 100."
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Active catalog products that are not assigned to the selected shop. The first product id is stored as `catalogProductId` for the assignment request."
+          }
+        },
+        {
+          "name": "Get Catalog Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Catalog product matches the captured id', function () {",
+                  "  pm.expect(String(pm.response.json().data.id)).to.eql(pm.environment.get('catalogProductId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/catalog/{{catalogProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "catalog",
+                "{{catalogProductId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Reads one active catalog product with its assignment status for the selected shop."
+          }
+        },
+        {
+          "name": "Assign Catalog Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Assigned product id is captured', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.product_id).to.not.eql(undefined);",
+                  "  pm.environment.set('createdListingProductId', String(data.product_id));",
+                  "});",
+                  "",
+                  "pm.test('Assignment belongs to the selected shop', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(String(data.shop_id)).to.eql(pm.environment.get('ownerShopId'));",
+                  "  pm.expect(data.price).to.eql('1999.00');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/catalog/{{catalogProductId}}/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "catalog",
+                "{{catalogProductId}}",
+                "assign"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "price",
+                  "value": "1999.00",
+                  "type": "text",
+                  "description": "Required shop price."
+                },
+                {
+                  "key": "stock",
+                  "value": "10",
+                  "type": "text"
+                },
+                {
+                  "key": "shop_description",
+                  "value": "Assigned by the ShopSphere Postman collection.",
+                  "type": "text"
+                },
+                {
+                  "key": "shop_status",
+                  "value": "active",
+                  "type": "text"
+                },
+                {
+                  "key": "shop_thumbnail",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional shop-specific image (jpg, jpeg, png, webp; max 2 MB)."
+                }
+              ]
+            },
+            "description": "Assigns the catalog product to the selected shop. The `shop_thumbnail` file field is disabled until you select an image. The resulting `product_id` is stored for later listing updates."
+          }
+        },
+        {
+          "name": "List Shop Products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "  pm.expect(pm.response.json().data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination metadata is present', function () {",
+                  "  pm.expect(pm.response.json().meta).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/products?per_page=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Matches product name or SKU."
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "disabled": true,
+                  "description": "active or inactive."
+                },
+                {
+                  "key": "per_page",
+                  "value": "10",
+                  "description": "Maximum 100."
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Paginated listings for the selected shop with catalog product details."
+          }
+        },
+        {
+          "name": "Create Product + Assign",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Created listing product id is captured', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.product_id).to.not.eql(undefined);",
+                  "  pm.environment.set('createdListingProductId', String(data.product_id));",
+                  "});",
+                  "",
+                  "pm.test('Create response is assigned to the selected shop', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(String(data.shop_id)).to.eql(pm.environment.get('ownerShopId'));",
+                  "  pm.expect(data.price).to.eql('1250.00');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "products"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "QA Owner Product {{$timestamp}}",
+                  "type": "text"
+                },
+                {
+                  "key": "sku",
+                  "value": "OWN-{{$timestamp}}-{{$randomInt}}",
+                  "type": "text",
+                  "description": "SKU is uppercased and must be unique."
+                },
+                {
+                  "key": "description",
+                  "value": "Catalog description created by the ShopSphere Postman collection.",
+                  "type": "text"
+                },
+                {
+                  "key": "category",
+                  "value": "QA",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "1250.00",
+                  "type": "text",
+                  "description": "Required shop price."
+                },
+                {
+                  "key": "stock",
+                  "value": "7",
+                  "type": "text"
+                },
+                {
+                  "key": "shop_description",
+                  "value": "Shop-specific description created by Postman.",
+                  "type": "text"
+                },
+                {
+                  "key": "shop_status",
+                  "value": "active",
+                  "type": "text"
+                },
+                {
+                  "key": "thumbnail",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional catalog image (jpg, jpeg, png, webp; max 2 MB)."
+                },
+                {
+                  "key": "shop_thumbnail",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional shop-specific image (jpg, jpeg, png, webp; max 2 MB)."
+                }
+              ]
+            },
+            "description": "Creates a catalog product and assigns it to the selected shop in one request. File fields are disabled until you select images. The created product id is stored for the update and unassign requests."
+          }
+        },
+        {
+          "name": "Update Shop Listing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Updated listing values are reflected in the response', function () {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.expect(data.price).to.eql('1350.00');",
+                  "  pm.expect(data.stock).to.eql(9);",
+                  "  pm.expect(data.status).to.eql('inactive');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/products/{{createdListingProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "products",
+                "{{createdListingProductId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "_method",
+                  "value": "PUT",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "1350.00",
+                  "type": "text"
+                },
+                {
+                  "key": "stock",
+                  "value": "9",
+                  "type": "text"
+                },
+                {
+                  "key": "shop_description",
+                  "value": "Updated by the ShopSphere Postman collection.",
+                  "type": "text"
+                },
+                {
+                  "key": "shop_status",
+                  "value": "inactive",
+                  "type": "text"
+                },
+                {
+                  "key": "remove_shop_thumbnail",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "shop_thumbnail",
+                  "type": "file",
+                  "src": [],
+                  "disabled": true,
+                  "description": "Optional replacement image (jpg, jpeg, png, webp; max 2 MB)."
+                }
+              ]
+            },
+            "description": "Updates shop-specific overrides only. Uses `_method=PUT` so Laravel parses the multipart body. Enable `shop_thumbnail` to test an upload."
+          }
+        },
+        {
+          "name": "Unassign Created Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Created listing product id variable is cleared', function () {",
+                  "  pm.environment.unset('createdListingProductId');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/products/{{createdListingProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "products",
+                "{{createdListingProductId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Unassigns the newly created product. The catalog product itself is not deleted."
+          }
+        },
+        {
+          "name": "Unassign Catalog Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Catalog product id variable is cleared', function () {",
+                  "  pm.environment.unset('catalogProductId');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/shop-owner/products/{{catalogProductId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "shop-owner",
+                "products",
+                "{{catalogProductId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Removes the earlier catalog assignment so the collection can be run repeatedly."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup (optional)",
+      "description": "Revokes the tokens captured by this run. Run this folder only after the other folders complete.",
+      "item": [
+        {
+          "name": "Logout Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Admin token variable is cleared', function () {",
+                  "  pm.environment.unset('adminToken');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Revokes the token captured from the admin login. Run this after all other folders."
+          }
+        },
+        {
+          "name": "Logout Shop Owner",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response envelope is successful', function () {",
+                  "  pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "",
+                  "pm.test('Owner token variable is cleared', function () {",
+                  "  pm.environment.unset('ownerToken');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ownerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Revokes the token captured from the shop-owner login."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string"
+    }
+  ]
+}

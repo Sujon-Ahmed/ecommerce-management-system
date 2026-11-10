@@ -4,14 +4,14 @@ A multi-shop e-commerce management platform built for the CSN Bangladesh technic
 
 Administrators manage shops, shop owners, and the global product catalog. Shop owners browse the shared catalog, add products to their shops, create new catalog products, and customize their own prices, descriptions, and thumbnails. Customers browse a shop-specific storefront that never exposes products not assigned to that shop.
 
-> **Status:** Phase 4 (backend foundation, admin module, shop-owner module, and public storefront) is implemented. The React frontend and full documentation follow in later phases.
+> **Status:** All phases are complete — Laravel REST API, React frontend, and API documentation with a runnable Postman collection.
 
 ## Repository layout
 
 ```
 backend/     Laravel 12 REST API (PHP 8.3, MySQL 8)
-frontend/    React + TypeScript + Vite application (added in Phase 5)
-docs/        API documentation and Postman collection (added in Phase 7)
+frontend/    React 19 + TypeScript + Vite client
+docs/        API reference and Postman collection/environment
 ```
 
 ## Requirements
@@ -19,7 +19,7 @@ docs/        API documentation and Postman collection (added in Phase 7)
 - PHP 8.3+ with `pdo_mysql`, `fileinfo`, `gd`, `zip`, `intl`, `mbstring`, `openssl`
 - Composer 2
 - MySQL 8
-- Node.js 20+ and npm (frontend, Phase 5)
+- Node.js 20+ and npm
 
 ## Backend setup
 
@@ -55,6 +55,39 @@ php artisan serve
 
 The API is available at `http://localhost:8000/api/v1`.
 
+## Frontend setup
+
+Start the backend first, then install and run the React client:
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+The app runs at `http://localhost:5173`. It reads the API root from `VITE_API_BASE_URL`:
+
+```dotenv
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+Shop owners with more than one shop choose a shop in the UI. The selection is stored per user in `localStorage` and sent as `X-Shop-Id` on every shop-owner request. Uploaded images are served from the backend's `/storage` URL.
+
+Frontend commands:
+
+```bash
+npm run dev        # Vite dev server
+npm run build      # Type-check and build for production
+npm run preview    # Preview the production build
+npm run lint       # Oxlint
+npm run typecheck  # tsc project build, no emit
+npm test           # Vitest in watch mode
+npm run test:run   # Vitest once (CI)
+```
+
+See [`frontend/README.md`](frontend/README.md) for the client architecture and conventions.
+
 ## Demo credentials
 
 | Role | Email | Password |
@@ -73,52 +106,52 @@ cd backend
 php artisan test
 ```
 
+Frontend checks:
+
+```bash
+cd frontend
+npm run typecheck
+npm run lint
+npm run test:run
+npm run build
+```
+
 ## API documentation
 
-The full endpoint reference, payloads, and the Postman collection are added in Phase 7. Implemented so far:
+The full endpoint reference is in [`docs/API.md`](docs/API.md). It covers the response envelope, authentication, roles, shop context, uploads, error codes, request bodies, and cURL examples.
 
-**Authentication**
+**Endpoint groups**
 
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me`
-- `POST /api/v1/auth/logout`
-- `PUT /api/v1/auth/profile`
-- `PUT /api/v1/auth/password`
+| Group | Prefix | Authentication |
+|---|---|---|
+| Authentication | `/api/v1/auth` | Login is public; other routes need a bearer token |
+| Storefront | `/api/v1/storefront` | Public |
+| Admin | `/api/v1/admin` | `role:admin` |
+| Shop owner | `/api/v1/shop-owner` | `role:shop_owner` plus an active shop context |
 
-**Admin** (`role:admin`)
+The storefront exposes active shops and only products that are active in the global catalog **and** actively assigned to the requested shop. List filters: `search`, `category`, `min_price`, `max_price`, `in_stock`; sorting: `latest`, `price_asc`, `price_desc`, `name`.
 
-- `/api/v1/admin/dashboard`
-- `/api/v1/admin/shops`
-- `/api/v1/admin/shop-owners`
-- `/api/v1/admin/products`
+Shop-owner routes are scoped to one shop per request. The API resolves the shop automatically when the owner has exactly one assignment. Owners with multiple shops send either:
 
-**Shop owner** (`role:shop_owner`)
-
-- `GET /api/v1/shop-owner/dashboard`
-- `GET /api/v1/shop-owner/shop` (read-only settings)
-- `GET /api/v1/shop-owner/catalog`
-- `GET /api/v1/shop-owner/catalog/{product}`
-- `POST /api/v1/shop-owner/catalog/{product}/assign`
-- `GET /api/v1/shop-owner/products`
-- `POST /api/v1/shop-owner/products` (creates a catalog product and assigns it)
-- `PUT /api/v1/shop-owner/products/{product}` (shop-specific overrides only)
-- `DELETE /api/v1/shop-owner/products/{product}` (unassign)
-
-### Shop context
-
-Shop-owner requests resolve the active shop automatically when the owner has exactly one assignment. Owners with multiple shops must send either:
-
-```
+```http
 X-Shop-Id: <shop id>
 ```
 
-or `?shop_id=<shop id>`. Without a context the API returns `422 SHOP_CONTEXT_REQUIRED`; an unassigned shop returns `403 SHOP_NOT_ASSIGNED`, and an inactive shop returns `403 SHOP_INACTIVE`.
+or `?shop_id=<shop id>`. Without a context the API returns `422 SHOP_CONTEXT_REQUIRED`; an unassigned shop returns `403 SHOP_NOT_ASSIGNED`, an inactive shop returns `403 SHOP_INACTIVE`, and an owner with no shops returns `403 NO_SHOP_ASSIGNED`.
 
-**Public storefront** (no authentication)
+## Postman collection
 
-- `GET /api/v1/storefront/shops` — active shops with visible product counts
-- `GET /api/v1/storefront/shops/{shop-slug}` — public shop profile
-- `GET /api/v1/storefront/shops/{shop-slug}/products` — products assigned to that shop
-- `GET /api/v1/storefront/shops/{shop-slug}/products/{product-slug}` — shop-specific product detail
+Import both files from [`docs/postman`](docs/postman):
 
-The storefront only returns products that are active in the global catalog **and** actively assigned to the requested shop. Inactive or soft-deleted shops return `404`, and shop-specific price, description, and thumbnail overrides fall back to the global values. Supported list filters: `search`, `category`, `min_price`, `max_price`, `in_stock`; sorting: `latest`, `price_asc`, `price_desc`, `name`.
+1. [`ShopSphere.postman_environment.json`](docs/postman/ShopSphere.postman_environment.json)
+2. [`ShopSphere.postman_collection.json`](docs/postman/ShopSphere.postman_collection.json)
+
+Select the **ShopSphere Local** environment, then run the folders in this order: **Auth → Storefront → Admin → Shop owner**. The login scripts capture `adminToken`, `ownerToken`, `ownerShopId`, and `ownerShopSlug`; later requests capture the ids of resources they create. The optional **Cleanup** folder revokes the captured tokens.
+
+Requests that support image uploads use `multipart/form-data` with the file field disabled. Enable the field and choose a jpg, jpeg, png, or webp image (max 2 MB) to exercise an upload.
+
+From a terminal with the Postman CLI installed:
+
+```bash
+postman collection run docs/postman/ShopSphere.postman_collection.json -e docs/postman/ShopSphere.postman_environment.json
+```
